@@ -54,8 +54,18 @@ export default function HomeScreen() {
             QRPASS
           </ThemedText>
         </ThemedView>
+
         <Link href="/create-event">
           <ThemedText>Create Event</ThemedText>
+        </Link>
+
+        <Link
+          href={{
+            pathname: "/register/[eventId]",
+            params: { eventId: "bd29582e-2a24-4454-9499-50a6cca84072" },
+          }}
+        >
+          <ThemedText>Testar Inscrição</ThemedText>
         </Link>
 
         {Platform.OS === "web" && <WebBadge />}
