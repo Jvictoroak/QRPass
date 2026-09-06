@@ -1,24 +1,38 @@
+import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
 export default function CreateEvent() {
+  const { session, loading: authLoading } = useAuth();
   const [name, setName] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !session) {
+      router.push("/login");
+    }
+  }, [authLoading, session]);
 
   async function handleCreate() {
     if (!name || !eventDate) {
       Alert.alert("Missing info", "Name and date are required.");
       return;
     }
+    if (!session) return;
 
     setLoading(true);
     const { data, error } = await supabase
       .from("events")
-      .insert({ name, event_date: eventDate, location })
+      .insert({
+        name,
+        event_date: eventDate,
+        location,
+        organizer_id: session.user.id,
+      })
       .select()
       .single();
     setLoading(false);
@@ -30,6 +44,10 @@ export default function CreateEvent() {
 
     Alert.alert("Success", `Event created: ${data.name}`);
     router.push("/");
+  }
+
+  if (authLoading || !session) {
+    return null;
   }
 
   return (

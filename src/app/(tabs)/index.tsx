@@ -1,6 +1,6 @@
 import * as Device from "expo-device";
 import { useEffect, useState } from "react";
-import { Platform, StyleSheet } from "react-native";
+import { Platform, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimatedIcon } from "@/components/animated-icon";
@@ -75,6 +75,10 @@ export default function HomeScreen() {
         >
           <ThemedText>Ver Detalhe do Evento</ThemedText>
         </Link>
+
+        <Pressable onPress={() => supabase.auth.signOut()}>
+          <ThemedText>Sair (teste)</ThemedText>
+        </Pressable>
 
         {Platform.OS === "web" && <WebBadge />}
       </SafeAreaView>
