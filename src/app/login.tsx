@@ -1,48 +1,129 @@
 import { supabase } from "@/lib/supabase";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 export default function Login() {
-  const [step, setStep] = useState<"email" | "otp">("email");
+  const [mode, setMode] = useState<"login" | "signup">("login");
+
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [birthDate, setBirthDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
-  async function handleSendCode() {
-    if (!email) {
-      Alert.alert("E-mail obrigatório", "Digite seu e-mail para continuar.");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    setLoading(false);
-    if (error) {
-      Alert.alert("Erro", error.message);
-      return;
-    }
-    setStep("otp");
+  function formatDateDisplay(date: Date) {
+    return date.toLocaleDateString("pt-BR");
+  }
+  function formatDateISO(date: Date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
-  async function handleVerifyCode() {
+  async function handleLogin() {
+    if (!email || !password) {
+      Alert.alert("Campos obrigatórios", "Preencha e-mail e senha.");
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.verifyOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      token: code,
-      type: "email",
+      password,
     });
     setLoading(false);
     if (error) {
-      Alert.alert("Código inválido", error.message);
+      Alert.alert("Erro ao entrar", error.message);
       return;
     }
     router.back();
   }
 
+  async function handleSignup() {
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !password ||
+      !confirmPassword ||
+      !birthDate
+    ) {
+      Alert.alert("Campos obrigatórios", "Preencha todos os campos.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert(
+        "Senhas diferentes",
+        "A confirmação de senha não bate com a senha.",
+      );
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert(
+        "Senha curta",
+        "A senha precisa ter pelo menos 6 caracteres.",
+      );
+      return;
+    }
+    const isoBirthDate = formatDateISO(birthDate);
+    if (!isoBirthDate) {
+      Alert.alert("Data inválida", "Use o formato DD/MM/AAAA.");
+      return;
+    }
+    if (!termsAccepted) {
+      Alert.alert(
+        "Termos de uso",
+        "Você precisa aceitar os termos de uso para continuar.",
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    if (error || !data.user) {
+      setLoading(false);
+      Alert.alert("Erro ao criar conta", error?.message ?? "Tente novamente.");
+      return;
+    }
+
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: data.user.id,
+      first_name: firstName,
+      last_name: lastName,
+      birth_date: formatDateISO(birthDate),
+      terms_accepted_at: new Date().toISOString(),
+    });
+
+    setLoading(false);
+
+    if (profileError) {
+      Alert.alert("Erro ao salvar perfil", profileError.message);
+      return;
+    }
+
+    router.back();
+  }
+
   return (
-    <View
-      style={{
-        flex: 1,
+    <ScrollView
+      contentContainerStyle={{
+        flexGrow: 1,
         padding: 20,
         gap: 12,
         justifyContent: "center",
@@ -50,74 +131,129 @@ export default function Login() {
       }}
     >
       <Text style={{ fontSize: 22, fontWeight: "bold", color: "#000" }}>
-        {step === "email" ? "Entrar" : "Digite o código"}
+        {mode === "login" ? "Entrar" : "Criar conta"}
       </Text>
 
-      {step === "email" ? (
+      {mode === "signup" && (
         <>
           <TextInput
-            placeholder="Seu e-mail"
+            placeholder="Nome"
             placeholderTextColor="#888"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            style={{
-              borderWidth: 1,
-              borderColor: "#ccc",
-              borderRadius: 8,
-              padding: 12,
-              color: "#000",
-            }}
+            value={firstName}
+            onChangeText={setFirstName}
+            style={inputStyle}
           />
-          <Pressable
-            onPress={handleSendCode}
-            disabled={loading}
-            style={{
-              backgroundColor: "#000",
-              padding: 14,
-              borderRadius: 8,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: "#fff", fontWeight: "600" }}>
-              {loading ? "Enviando..." : "Enviar código"}
+          <TextInput
+            placeholder="Sobrenome"
+            placeholderTextColor="#888"
+            value={lastName}
+            onChangeText={setLastName}
+            style={inputStyle}
+          />
+          <Pressable onPress={() => setShowDatePicker(true)} style={inputStyle}>
+            <Text style={{ color: birthDate ? "#000" : "#888" }}>
+              {birthDate ? formatDateDisplay(birthDate) : "Data de nascimento"}
             </Text>
           </Pressable>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={birthDate ?? new Date(2000, 0, 1)}
+              mode="date"
+              display="spinner"
+              maximumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) {
+                  setBirthDate(selectedDate);
+                }
+              }}
+            />
+          )}
         </>
-      ) : (
+      )}
+
+      <TextInput
+        placeholder="E-mail"
+        placeholderTextColor="#888"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        style={inputStyle}
+      />
+
+      <TextInput
+        placeholder="Senha"
+        placeholderTextColor="#888"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        style={inputStyle}
+      />
+
+      {mode === "signup" && (
         <>
-          <Text style={{ color: "#555" }}>Enviamos um código para {email}</Text>
           <TextInput
-            placeholder="Código de 6 dígitos"
+            placeholder="Confirmar senha"
             placeholderTextColor="#888"
-            value={code}
-            onChangeText={setCode}
-            keyboardType="number-pad"
-            style={{
-              borderWidth: 1,
-              borderColor: "#ccc",
-              borderRadius: 8,
-              padding: 12,
-              color: "#000",
-            }}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            style={inputStyle}
           />
+
           <Pressable
-            onPress={handleVerifyCode}
-            disabled={loading}
-            style={{
-              backgroundColor: "#000",
-              padding: 14,
-              borderRadius: 8,
-              alignItems: "center",
-            }}
+            onPress={() => setTermsAccepted(!termsAccepted)}
+            style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
           >
-            <Text style={{ color: "#fff", fontWeight: "600" }}>
-              {loading ? "Verificando..." : "Confirmar"}
+            <View
+              style={{
+                width: 20,
+                height: 20,
+                borderWidth: 1,
+                borderColor: "#000",
+                backgroundColor: termsAccepted ? "#000" : "#fff",
+                borderRadius: 4,
+              }}
+            />
+            <Text style={{ color: "#000", flex: 1 }}>
+              Li e aceito os termos de uso
             </Text>
           </Pressable>
         </>
       )}
-    </View>
+
+      <Pressable
+        onPress={mode === "login" ? handleLogin : handleSignup}
+        disabled={loading}
+        style={{
+          backgroundColor: "#000",
+          padding: 14,
+          borderRadius: 8,
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: "#fff", fontWeight: "600" }}>
+          {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
+        </Text>
+      </Pressable>
+
+      <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
+        <Text style={{ color: "#555", textAlign: "center" }}>
+          {mode === "login"
+            ? "Não tem conta? Criar uma"
+            : "Já tem conta? Entrar"}
+        </Text>
+      </Pressable>
+    </ScrollView>
   );
 }
+
+const inputStyle = {
+  borderWidth: 1,
+  borderColor: "#ccc",
+  borderRadius: 8,
+  padding: 12,
+  color: "#000",
+} as const;

@@ -1,5 +1,6 @@
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
@@ -7,7 +8,8 @@ import { Alert, Pressable, Text, TextInput, View } from "react-native";
 export default function CreateEvent() {
   const { session, loading: authLoading } = useAuth();
   const [name, setName] = useState("");
-  const [eventDate, setEventDate] = useState("");
+  const [eventDate, setEventDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -50,6 +52,18 @@ export default function CreateEvent() {
     return null;
   }
 
+  function formatDateDisplay(date: Date) {
+    return date.toLocaleDateString("pt-BR");
+  }
+
+  function formatDateISO(date: Date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
   return (
     <View
       style={{
@@ -78,19 +92,35 @@ export default function CreateEvent() {
         }}
       />
 
-      <TextInput
-        placeholder="Date (YYYY-MM-DD)"
-        placeholderTextColor="#888"
-        value={eventDate}
-        onChangeText={setEventDate}
+      <Pressable
+        onPress={() => setShowDatePicker(true)}
         style={{
           borderWidth: 1,
           borderColor: "#ccc",
           borderRadius: 8,
           padding: 12,
-          color: "#000",
         }}
-      />
+      >
+        <Text style={{ color: eventDate ? "#000" : "#888" }}>
+          {eventDate ? formatDateDisplay(eventDate) : "Data do evento"}
+        </Text>
+      </Pressable>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={eventDate ?? new Date()}
+          mode="date"
+          display="spinner"
+          minimumDate={new Date()}
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+
+            if (selectedDate) {
+              setEventDate(selectedDate);
+            }
+          }}
+        />
+      )}
 
       <TextInput
         placeholder="Location (optional)"

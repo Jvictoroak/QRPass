@@ -84,13 +84,20 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.headerRow}>
           <ThemedText type="title">Meus Eventos</ThemedText>
-          <Link href="/create-event" asChild>
-            <Pressable style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>+ Criar Evento</Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Link href="/create-event" asChild>
+              <Pressable style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>+ Criar Evento</Text>
+              </Pressable>
+            </Link>
+            <Pressable
+              onPress={() => supabase.auth.signOut()}
+              style={styles.secondaryButton}
+            >
+              <Text style={styles.secondaryButtonText}>Sair</Text>
             </Pressable>
-          </Link>
+          </View>
         </View>
-
         <FlatList
           style={{ width: "100%" }}
           data={events}
@@ -171,4 +178,15 @@ const styles = StyleSheet.create({
   },
   eventName: { fontWeight: "700", fontSize: 16, color: "#000" },
   eventInfo: { color: "#555" },
+  secondaryButton: {
+    backgroundColor: "#eee",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  secondaryButtonText: {
+    color: "#000",
+    fontWeight: "600",
+    fontSize: 14,
+  },
 });

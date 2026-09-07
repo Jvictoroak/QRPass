@@ -2,12 +2,12 @@ import { supabase } from "@/lib/supabase";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
@@ -77,6 +77,26 @@ export default function Register() {
     }
 
     const userId = authData.session.user.id;
+
+    const { data: existing, error: existingError } = await supabase
+      .from("registrations")
+      .select("*")
+      .eq("event_id", eventId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingError) {
+      setLoading(false);
+      Alert.alert("Erro", existingError.message);
+      return;
+    }
+
+    if (existing) {
+      setLoading(false);
+      setRegistrationCode(existing.code);
+      setStep("success");
+      return;
+    }
 
     const { data: registration, error: regError } = await supabase
       .from("registrations")
