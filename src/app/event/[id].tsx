@@ -1,13 +1,15 @@
 import { supabase } from "@/lib/supabase";
+import * as Linking from "expo-linking";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 type Registration = {
@@ -22,6 +24,18 @@ export default function EventDetail() {
   const [event, setEvent] = useState<any>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
+
+  async function handleShareLink() {
+    const url = Linking.createURL(`/register/${id}`);
+
+    try {
+      await Share.share({
+        message: `Você foi convidado para o evento "${event?.name}"! Inscreva-se aqui: ${url}`,
+      });
+    } catch (error) {
+      console.log("Erro ao compartilhar:", error);
+    }
+  }
 
   const loadData = useCallback(async () => {
     const { data: eventData } = await supabase
@@ -101,6 +115,12 @@ export default function EventDetail() {
             <Text style={styles.scannerButtonText}>Abrir Scanner</Text>
           </Pressable>
         </Link>
+
+        <Pressable onPress={handleShareLink} style={styles.shareButton}>
+          <Text style={styles.shareButtonText}>
+            Compartilhar Link de Inscrição
+          </Text>
+        </Pressable>
       </View>
 
       <FlatList
@@ -177,4 +197,16 @@ const styles = StyleSheet.create({
   },
   badgeSuccess: { backgroundColor: "#d4edda", color: "#155724" },
   badgePending: { backgroundColor: "#f8d7da", color: "#721c24" },
+
+  shareButton: {
+    marginTop: 8,
+    backgroundColor: "#eee",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  shareButtonText: {
+    color: "#000",
+    fontWeight: "600",
+  },
 });

@@ -1,3 +1,4 @@
+import * as Linking from "expo-linking";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -45,7 +46,6 @@ export default function HomeScreen() {
     setLoadingEvents(false);
   }, [session]);
 
-  // Recarrega toda vez que a tela ganha foco (ex: ao voltar de criar um evento)
   useFocusEffect(
     useCallback(() => {
       loadEvents();
@@ -95,6 +95,17 @@ export default function HomeScreen() {
               style={styles.secondaryButton}
             >
               <Text style={styles.secondaryButtonText}>Sair</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                const url = Linking.createURL(
+                  "/register/5f95bcb2-dfba-4215-b3f5-ec21d011816a",
+                );
+                console.log("URL gerada:", url);
+                Linking.openURL(url);
+              }}
+            >
+              <ThemedText>Testar Deep Link</ThemedText>
             </Pressable>
           </View>
         </View>
