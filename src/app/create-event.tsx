@@ -1,9 +1,23 @@
+import { DateField } from "@/components/date-field";
+import { colors, radius, spacing, typography } from "@/constants/theme";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function CreateEvent() {
   const { session, loading: authLoading } = useAuth();
@@ -21,7 +35,7 @@ export default function CreateEvent() {
 
   async function handleCreate() {
     if (!name || !eventDate) {
-      Alert.alert("Missing info", "Name and date are required.");
+      Alert.alert("Campos obrigatórios", "Nome e data são obrigatórios.");
       return;
     }
     if (!session) return;
@@ -40,16 +54,12 @@ export default function CreateEvent() {
     setLoading(false);
 
     if (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert("Erro", error.message);
       return;
     }
 
-    Alert.alert("Success", `Event created: ${data.name}`);
+    Alert.alert("Sucesso", `Evento criado: ${data.name}`);
     router.push("/");
-  }
-
-  if (authLoading || !session) {
-    return null;
   }
 
   function formatDateDisplay(date: Date) {
@@ -64,92 +74,149 @@ export default function CreateEvent() {
     return `${year}-${month}-${day}`;
   }
 
+  if (authLoading || !session) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, styles.centered]}>
+          <ActivityIndicator color={colors.purple} />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
-    <View
-      style={{
-        flex: 1,
-        padding: 20,
-        gap: 12,
-        justifyContent: "center",
-        backgroundColor: "#fff",
-      }}
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.black }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Text style={{ fontSize: 22, fontWeight: "bold", color: "#000" }}>
-        Create Event
-      </Text>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeButton}
+            hitSlop={8}
+          >
+            <Ionicons name="close" size={20} color={colors.white} />
+          </Pressable>
+        </View>
 
-      <TextInput
-        placeholder="Event name"
-        placeholderTextColor="#888"
-        value={name}
-        onChangeText={setName}
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 8,
-          padding: 12,
-          color: "#000",
-        }}
-      />
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>Criar evento</Text>
+          <Text style={styles.subtitle}>
+            Preencha os dados principais. Você pode editar depois.
+          </Text>
 
-      <Pressable
-        onPress={() => setShowDatePicker(true)}
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 8,
-          padding: 12,
-        }}
-      >
-        <Text style={{ color: eventDate ? "#000" : "#888" }}>
-          {eventDate ? formatDateDisplay(eventDate) : "Data do evento"}
-        </Text>
-      </Pressable>
+          <View style={styles.inputWrap}>
+            <Ionicons
+              name="pricetag-outline"
+              size={16}
+              color={colors.grayMuted}
+            />
+            <TextInput
+              placeholder="Nome do evento"
+              placeholderTextColor={colors.grayMuted}
+              value={name}
+              onChangeText={setName}
+              style={styles.input}
+            />
+          </View>
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={eventDate ?? new Date()}
-          mode="date"
-          display="spinner"
-          minimumDate={new Date()}
-          onChange={(event, selectedDate) => {
-            setShowDatePicker(false);
+          <DateField
+            value={eventDate}
+            onChange={setEventDate}
+            placeholder="Data do evento"
+            minimumDate={new Date()}
+          />
 
-            if (selectedDate) {
-              setEventDate(selectedDate);
-            }
-          }}
-        />
-      )}
+          <View style={styles.inputWrap}>
+            <Ionicons
+              name="location-outline"
+              size={16}
+              color={colors.grayMuted}
+            />
+            <TextInput
+              placeholder="Local (opcional)"
+              placeholderTextColor={colors.grayMuted}
+              value={location}
+              onChangeText={setLocation}
+              style={styles.input}
+            />
+          </View>
 
-      <TextInput
-        placeholder="Location (optional)"
-        placeholderTextColor="#888"
-        value={location}
-        onChangeText={setLocation}
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 8,
-          padding: 12,
-          color: "#000",
-        }}
-      />
-
-      <Pressable
-        onPress={handleCreate}
-        disabled={loading}
-        style={{
-          backgroundColor: "#000",
-          padding: 14,
-          borderRadius: 8,
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: "#fff", fontWeight: "600" }}>
-          {loading ? "Creating..." : "Create Event"}
-        </Text>
-      </Pressable>
-    </View>
+          <Pressable
+            onPress={handleCreate}
+            disabled={loading}
+            style={[styles.primaryButton, loading && { opacity: 0.6 }]}
+          >
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Criando..." : "Criar evento"}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.black },
+  safeArea: { flex: 1 },
+  centered: { alignItems: "center", justifyContent: "center" },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  content: {
+    flexGrow: 1,
+    padding: spacing.lg,
+    paddingTop: spacing.md,
+    gap: spacing.sm + 4,
+  },
+  title: { ...typography.h1, fontSize: 26 },
+  subtitle: {
+    ...typography.body,
+    color: colors.gray,
+    marginTop: -4,
+    marginBottom: spacing.xs,
+  },
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    height: 50,
+  },
+  input: {
+    flex: 1,
+    ...typography.body,
+    color: colors.white,
+    padding: 0,
+  },
+  primaryButton: {
+    backgroundColor: colors.neon,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    marginTop: spacing.xs,
+  },
+  primaryButtonText: {
+    ...typography.bodyMedium,
+    color: colors.black,
+    fontSize: 15,
+  },
+});

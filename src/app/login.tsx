@@ -1,15 +1,21 @@
+import { DateField } from "@/components/date-field";
+import { colors, radius, spacing, typography } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Login() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -20,7 +26,6 @@ export default function Login() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -120,140 +125,245 @@ export default function Login() {
     router.back();
   }
 
+  const isSignup = mode === "signup";
+
   return (
-    <ScrollView
-      contentContainerStyle={{
-        flexGrow: 1,
-        padding: 20,
-        gap: 12,
-        justifyContent: "center",
-        backgroundColor: "#fff",
-      }}
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.black }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Text style={{ fontSize: 22, fontWeight: "bold", color: "#000" }}>
-        {mode === "login" ? "Entrar" : "Criar conta"}
-      </Text>
-
-      {mode === "signup" && (
-        <>
-          <TextInput
-            placeholder="Nome"
-            placeholderTextColor="#888"
-            value={firstName}
-            onChangeText={setFirstName}
-            style={inputStyle}
-          />
-          <TextInput
-            placeholder="Sobrenome"
-            placeholderTextColor="#888"
-            value={lastName}
-            onChangeText={setLastName}
-            style={inputStyle}
-          />
-          <Pressable onPress={() => setShowDatePicker(true)} style={inputStyle}>
-            <Text style={{ color: birthDate ? "#000" : "#888" }}>
-              {birthDate ? formatDateDisplay(birthDate) : "Data de nascimento"}
-            </Text>
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeButton}
+            hitSlop={8}
+          >
+            <Ionicons name="close" size={20} color={colors.white} />
           </Pressable>
+        </View>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={birthDate ?? new Date(2000, 0, 1)}
-              mode="date"
-              display="spinner"
-              maximumDate={new Date()}
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) {
-                  setBirthDate(selectedDate);
-                }
-              }}
-            />
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>
+            {isSignup ? "Criar conta" : "Bem-vindo de volta"}
+          </Text>
+          <Text style={styles.subtitle}>
+            {isSignup
+              ? "Preencha seus dados para começar a criar eventos."
+              : "Entre para gerenciar seus eventos."}
+          </Text>
+
+          {isSignup && (
+            <>
+              <View style={styles.row}>
+                <View style={[styles.inputWrap, { flex: 1 }]}>
+                  <TextInput
+                    placeholder="Nome"
+                    placeholderTextColor={colors.grayMuted}
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    style={styles.input}
+                  />
+                </View>
+                <View style={[styles.inputWrap, { flex: 1 }]}>
+                  <TextInput
+                    placeholder="Sobrenome"
+                    placeholderTextColor={colors.grayMuted}
+                    value={lastName}
+                    onChangeText={setLastName}
+                    style={styles.input}
+                  />
+                </View>
+              </View>
+
+              <DateField
+                value={birthDate}
+                onChange={setBirthDate}
+                placeholder="Data de nascimento"
+                maximumDate={new Date()}
+              />
+            </>
           )}
-        </>
-      )}
 
-      <TextInput
-        placeholder="E-mail"
-        placeholderTextColor="#888"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={inputStyle}
-      />
+          <View style={styles.inputWrap}>
+            <Ionicons name="mail-outline" size={16} color={colors.grayMuted} />
+            <TextInput
+              placeholder="E-mail"
+              placeholderTextColor={colors.grayMuted}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={styles.input}
+            />
+          </View>
 
-      <TextInput
-        placeholder="Senha"
-        placeholderTextColor="#888"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={inputStyle}
-      />
+          <View style={styles.inputWrap}>
+            <Ionicons
+              name="lock-closed-outline"
+              size={16}
+              color={colors.grayMuted}
+            />
+            <TextInput
+              placeholder="Senha"
+              placeholderTextColor={colors.grayMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              style={styles.input}
+            />
+          </View>
 
-      {mode === "signup" && (
-        <>
-          <TextInput
-            placeholder="Confirmar senha"
-            placeholderTextColor="#888"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            style={inputStyle}
-          />
+          {isSignup && (
+            <>
+              <View style={styles.inputWrap}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={16}
+                  color={colors.grayMuted}
+                />
+                <TextInput
+                  placeholder="Confirmar senha"
+                  placeholderTextColor={colors.grayMuted}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  style={styles.input}
+                />
+              </View>
+
+              <Pressable
+                onPress={() => setTermsAccepted(!termsAccepted)}
+                style={styles.checkboxRow}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    termsAccepted && styles.checkboxChecked,
+                  ]}
+                >
+                  {termsAccepted && (
+                    <Ionicons name="checkmark" size={13} color={colors.black} />
+                  )}
+                </View>
+                <Text style={styles.checkboxLabel}>
+                  Li e aceito os termos de uso
+                </Text>
+              </Pressable>
+            </>
+          )}
 
           <Pressable
-            onPress={() => setTermsAccepted(!termsAccepted)}
-            style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            onPress={isSignup ? handleSignup : handleLogin}
+            disabled={loading}
+            style={[styles.primaryButton, loading && { opacity: 0.6 }]}
           >
-            <View
-              style={{
-                width: 20,
-                height: 20,
-                borderWidth: 1,
-                borderColor: "#000",
-                backgroundColor: termsAccepted ? "#000" : "#fff",
-                borderRadius: 4,
-              }}
-            />
-            <Text style={{ color: "#000", flex: 1 }}>
-              Li e aceito os termos de uso
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Aguarde..." : isSignup ? "Criar conta" : "Entrar"}
             </Text>
           </Pressable>
-        </>
-      )}
 
-      <Pressable
-        onPress={mode === "login" ? handleLogin : handleSignup}
-        disabled={loading}
-        style={{
-          backgroundColor: "#000",
-          padding: 14,
-          borderRadius: 8,
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: "#fff", fontWeight: "600" }}>
-          {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
-        </Text>
-      </Pressable>
-
-      <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")}>
-        <Text style={{ color: "#555", textAlign: "center" }}>
-          {mode === "login"
-            ? "Não tem conta? Criar uma"
-            : "Já tem conta? Entrar"}
-        </Text>
-      </Pressable>
-    </ScrollView>
+          <Pressable onPress={() => setMode(isSignup ? "login" : "signup")}>
+            <Text style={styles.switchModeText}>
+              {isSignup ? "Já tem conta? " : "Não tem conta? "}
+              <Text style={styles.switchModeHighlight}>
+                {isSignup ? "Entrar" : "Criar uma"}
+              </Text>
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
-const inputStyle = {
-  borderWidth: 1,
-  borderColor: "#ccc",
-  borderRadius: 8,
-  padding: 12,
-  color: "#000",
-} as const;
+const styles = StyleSheet.create({
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  content: {
+    flexGrow: 1,
+    padding: spacing.lg,
+    paddingTop: spacing.md,
+    gap: spacing.sm + 4,
+  },
+  title: { ...typography.h1, fontSize: 26 },
+  subtitle: {
+    ...typography.body,
+    color: colors.gray,
+    marginTop: -4,
+    marginBottom: spacing.xs,
+  },
+  row: { flexDirection: "row", gap: spacing.sm },
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    height: 50,
+  },
+  input: {
+    flex: 1,
+    ...typography.body,
+    color: colors.white,
+    padding: 0,
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: colors.neon,
+    borderColor: colors.neon,
+  },
+  checkboxLabel: { ...typography.body, color: colors.gray, flex: 1 },
+  primaryButton: {
+    backgroundColor: colors.neon,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    marginTop: spacing.xs,
+  },
+  primaryButtonText: {
+    ...typography.bodyMedium,
+    color: colors.black,
+    fontSize: 15,
+  },
+  switchModeText: {
+    ...typography.body,
+    color: colors.gray,
+    textAlign: "center",
+    marginTop: spacing.xs,
+  },
+  switchModeHighlight: {
+    color: colors.purpleText,
+    fontFamily: typography.bodyMedium.fontFamily,
+  },
+});

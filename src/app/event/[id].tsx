@@ -1,6 +1,9 @@
+import { Badge } from "@/components/badge";
+import { colors, radius, spacing, typography } from "@/constants/theme";
 import { supabase } from "@/lib/supabase";
+import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
-import { Link, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,6 +14,14 @@ import {
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+type EventData = {
+  id: string;
+  name: string;
+  event_date: string;
+  location: string | null;
+};
 
 type Registration = {
   id: string;
@@ -19,9 +30,23 @@ type Registration = {
   checked_in_at: string | null;
 };
 
+function formatEventDate(isoDate?: string) {
+  if (!isoDate) return "";
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(isoDate));
+  } catch {
+    return isoDate;
+  }
+}
+
 export default function EventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<EventData | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -84,8 +109,10 @@ export default function EventDetail() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
+      <View style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, styles.center]}>
+          <ActivityIndicator color={colors.purple} />
+        </SafeAreaView>
       </View>
     );
   }
@@ -94,119 +121,182 @@ export default function EventDetail() {
     (r) => r.status === "checked_in",
   ).length;
   const totalCount = registrations.length;
+  const progress = totalCount > 0 ? checkedInCount / totalCount : 0;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.eventName}>{event?.name}</Text>
-        <Text style={styles.eventInfo}>{event?.event_date}</Text>
-        {event?.location ? (
-          <Text style={styles.eventInfo}>{event.location}</Text>
-        ) : null}
-
-        <View style={styles.counterBox}>
-          <Text style={styles.counterText}>
-            {checkedInCount} de {totalCount} chegaram
-          </Text>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.iconButton}
+            hitSlop={8}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.white} />
+          </Pressable>
+          <Pressable
+            onPress={handleShareLink}
+            style={styles.iconButton}
+            hitSlop={8}
+          >
+            <Ionicons name="share-outline" size={18} color={colors.white} />
+          </Pressable>
         </View>
 
-        <Link href="/(tabs)/scanner" asChild>
-          <Pressable style={styles.scannerButton}>
-            <Text style={styles.scannerButtonText}>Abrir Scanner</Text>
-          </Pressable>
-        </Link>
-
-        <Pressable onPress={handleShareLink} style={styles.shareButton}>
-          <Text style={styles.shareButtonText}>
-            Compartilhar Link de Inscrição
-          </Text>
-        </Pressable>
-      </View>
-
-      <FlatList
-        data={registrations}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16, gap: 8 }}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <Text style={styles.rowName}>{item.attendee_name}</Text>
-            <Text
-              style={[
-                styles.badge,
-                item.status === "checked_in"
-                  ? styles.badgeSuccess
-                  : styles.badgePending,
-              ]}
-            >
-              {item.status === "checked_in" ? "Chegou" : "Não chegou"}
+        <View style={styles.header}>
+          <Text style={styles.eventName}>{event?.name}</Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="calendar-outline" size={14} color={colors.gray} />
+            <Text style={styles.eventInfo}>
+              {formatEventDate(event?.event_date)}
             </Text>
           </View>
-        )}
-        ListEmptyComponent={
-          <Text style={{ textAlign: "center", color: "#888", marginTop: 20 }}>
-            Nenhuma inscrição ainda.
-          </Text>
-        }
-      />
+          {event?.location ? (
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={14} color={colors.gray} />
+              <Text style={styles.eventInfo}>{event.location}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.counterBox}>
+            <View style={styles.counterTextRow}>
+              <Text style={styles.counterText}>
+                {checkedInCount} de {totalCount} chegaram
+              </Text>
+              <Text style={styles.counterPercent}>
+                {totalCount > 0 ? Math.round(progress * 100) : 0}%
+              </Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View
+                style={[styles.progressFill, { width: `${progress * 100}%` }]}
+              />
+            </View>
+          </View>
+
+          <Pressable
+            onPress={() => router.push("/scanner")}
+            style={styles.scannerButton}
+          >
+            <Ionicons name="qr-code-outline" size={18} color={colors.black} />
+            <Text style={styles.scannerButtonText}>Abrir scanner</Text>
+          </Pressable>
+        </View>
+
+        <FlatList
+          data={registrations}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={() => <View style={styles.divider} />}
+          renderItem={({ item }) => (
+            <View style={styles.row}>
+              <Text style={styles.rowName}>{item.attendee_name}</Text>
+              <Badge
+                label={item.status === "checked_in" ? "Chegou" : "Não chegou"}
+                variant={item.status === "checked_in" ? "neon" : "gray"}
+              />
+            </View>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons
+                name="people-outline"
+                size={28}
+                color={colors.grayMuted}
+              />
+              <Text style={styles.emptyTitle}>Nenhuma inscrição ainda</Text>
+              <Text style={styles.emptySubtitle}>
+                Compartilhe o link pra receber as primeiras.
+              </Text>
+            </View>
+          }
+        />
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: colors.black },
+  safeArea: { flex: 1 },
+  center: { alignItems: "center", justifyContent: "center" },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   header: {
-    padding: 20,
-    gap: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    gap: 4,
   },
-  eventName: { fontSize: 22, fontWeight: "bold", color: "#000" },
-  eventInfo: { color: "#555" },
+  eventName: { ...typography.h1, fontSize: 24 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  eventInfo: { ...typography.body, color: colors.gray },
   counterBox: {
-    marginTop: 10,
-    backgroundColor: "#f2f2f2",
-    padding: 10,
-    borderRadius: 8,
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
-  counterText: { fontWeight: "600", color: "#000", textAlign: "center" },
-  scannerButton: {
-    marginTop: 10,
-    backgroundColor: "#000",
-    padding: 12,
-    borderRadius: 8,
+  counterTextRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
-  scannerButtonText: { color: "#fff", fontWeight: "600" },
+  counterText: { ...typography.bodyMedium },
+  counterPercent: { ...typography.bodyMedium, color: colors.neon },
+  progressTrack: {
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceElevated,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: colors.neon,
+    borderRadius: radius.pill,
+  },
+  scannerButton: {
+    marginTop: spacing.sm + 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.neon,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+  },
+  scannerButtonText: { ...typography.bodyMedium, color: colors.black },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 12,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
+    paddingVertical: spacing.sm + 4,
   },
-  rowName: { color: "#000", fontSize: 16 },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: "600",
-    overflow: "hidden",
-  },
-  badgeSuccess: { backgroundColor: "#d4edda", color: "#155724" },
-  badgePending: { backgroundColor: "#f8d7da", color: "#721c24" },
-
-  shareButton: {
-    marginTop: 8,
-    backgroundColor: "#eee",
-    padding: 12,
-    borderRadius: 8,
+  rowName: { ...typography.body, color: colors.white },
+  divider: { height: 1, backgroundColor: colors.border },
+  emptyState: {
     alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingTop: spacing.xl * 2,
   },
-  shareButtonText: {
-    color: "#000",
-    fontWeight: "600",
-  },
+  emptyTitle: { ...typography.h3 },
+  emptySubtitle: { ...typography.caption, textAlign: "center" },
 });
