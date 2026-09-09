@@ -1,5 +1,6 @@
 import { Badge } from "@/components/badge";
 import { colors, radius, spacing, typography } from "@/constants/theme";
+import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
@@ -21,6 +22,7 @@ type EventData = {
   name: string;
   event_date: string;
   location: string | null;
+  organizer_id: string;
 };
 
 type Registration = {
@@ -46,6 +48,7 @@ function formatEventDate(isoDate?: string) {
 
 export default function EventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { session, loading: authLoading } = useAuth();
   const [event, setEvent] = useState<EventData | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +68,7 @@ export default function EventDetail() {
   const loadData = useCallback(async () => {
     const { data: eventData } = await supabase
       .from("events")
-      .select("*")
+      .select("id, name, event_date, location, organizer_id")
       .eq("id", id)
       .single();
     setEvent(eventData);
@@ -107,11 +110,60 @@ export default function EventDetail() {
     };
   }, [id, loadData]);
 
-  if (loading) {
+  const isLoading = loading || authLoading;
+
+  if (isLoading) {
     return (
       <View style={styles.container}>
         <SafeAreaView style={[styles.safeArea, styles.center]}>
           <ActivityIndicator color={colors.purple} />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (!event) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, styles.center]}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={28}
+            color={colors.grayMuted}
+          />
+          <Text style={styles.restrictedTitle}>Evento não encontrado</Text>
+          <Pressable
+            onPress={() => router.replace("/")}
+            style={styles.restrictedButton}
+          >
+            <Text style={styles.restrictedButtonText}>Voltar</Text>
+          </Pressable>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  const isOwner = session?.user.id === event.organizer_id;
+
+  if (!isOwner) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, styles.center]}>
+          <Ionicons
+            name="lock-closed-outline"
+            size={28}
+            color={colors.grayMuted}
+          />
+          <Text style={styles.restrictedTitle}>Acesso restrito</Text>
+          <Text style={styles.restrictedText}>
+            Só o organizador deste evento pode ver esta página.
+          </Text>
+          <Pressable
+            onPress={() => router.replace("/")}
+            style={styles.restrictedButton}
+          >
+            <Text style={styles.restrictedButtonText}>Voltar para a Home</Text>
+          </Pressable>
         </SafeAreaView>
       </View>
     );
@@ -144,14 +196,14 @@ export default function EventDetail() {
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.eventName}>{event?.name}</Text>
+          <Text style={styles.eventName}>{event.name}</Text>
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={14} color={colors.gray} />
             <Text style={styles.eventInfo}>
-              {formatEventDate(event?.event_date)}
+              {formatEventDate(event.event_date)}
             </Text>
           </View>
-          {event?.location ? (
+          {event.location ? (
             <View style={styles.metaRow}>
               <Ionicons name="location-outline" size={14} color={colors.gray} />
               <Text style={styles.eventInfo}>{event.location}</Text>
@@ -219,7 +271,26 @@ export default function EventDetail() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.black },
   safeArea: { flex: 1 },
-  center: { alignItems: "center", justifyContent: "center" },
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+  },
+  restrictedTitle: { ...typography.h2 },
+  restrictedText: {
+    ...typography.body,
+    color: colors.gray,
+    textAlign: "center",
+  },
+  restrictedButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 4,
+    borderRadius: radius.pill,
+  },
+  restrictedButtonText: { ...typography.bodyMedium },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
