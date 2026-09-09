@@ -1,9 +1,9 @@
-import * as Linking from "expo-linking";
-import { Link, useFocusEffect } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,10 +11,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { WebBadge } from "@/components/web-badge";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { EventCard } from "@/components/event-card";
+import {
+  BottomTabInset,
+  MaxContentWidth,
+  colors,
+  radius,
+  spacing,
+  typography,
+} from "@/constants/theme";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 
@@ -25,7 +30,31 @@ type EventItem = {
   location: string | null;
 };
 
+function formatEventDate(isoDate: string) {
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(isoDate));
+  } catch {
+    return isoDate;
+  }
+}
+
+function getEventStatus(isoDate: string): {
+  label: string;
+  variant: "neon" | "gray";
+} {
+  const isUpcoming = new Date(isoDate).getTime() > Date.now();
+  return isUpcoming
+    ? { label: "Próximo", variant: "neon" }
+    : { label: "Encerrado", variant: "gray" };
+}
+
 export default function HomeScreen() {
+  const router = useRouter();
   const { session, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -54,150 +83,146 @@ export default function HomeScreen() {
 
   if (authLoading) {
     return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea} />
-      </ThemedView>
+      <View style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, styles.centered]}>
+          <ActivityIndicator color={colors.purple} />
+        </SafeAreaView>
+      </View>
     );
   }
 
   if (!session) {
     return (
-      <ThemedView style={styles.container}>
+      <View style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-          <ThemedView style={styles.heroSection}>
-            <ThemedText type="title">QRPASS</ThemedText>
-            <ThemedText>Faça login para gerenciar seus eventos.</ThemedText>
+          <View style={styles.heroSection}>
+            <Text style={styles.heroTitle}>QRPass</Text>
+            <Text style={styles.heroSubtitle}>
+              Faça login para gerenciar seus eventos.
+            </Text>
             <Link href="/login" asChild>
               <Pressable style={styles.primaryButton}>
                 <Text style={styles.primaryButtonText}>Entrar</Text>
               </Pressable>
             </Link>
-          </ThemedView>
-          {Platform.OS === "web" && <WebBadge />}
+          </View>
         </SafeAreaView>
-      </ThemedView>
+      </View>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.headerRow}>
-          <ThemedText type="title">Meus Eventos</ThemedText>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Link href="/create-event" asChild>
-              <Pressable style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>+ Criar Evento</Text>
-              </Pressable>
-            </Link>
-            <Pressable
-              onPress={() => supabase.auth.signOut()}
-              style={styles.secondaryButton}
-            >
-              <Text style={styles.secondaryButtonText}>Sair</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                const url = Linking.createURL(
-                  "/register/5f95bcb2-dfba-4215-b3f5-ec21d011816a",
-                );
-                console.log("URL gerada:", url);
-                Linking.openURL(url);
-              }}
-            >
-              <ThemedText>Testar Deep Link</ThemedText>
-            </Pressable>
+          <View>
+            <Text style={styles.eyebrow}>
+              {events.length} {events.length === 1 ? "evento" : "eventos"}
+            </Text>
+            <Text style={styles.title}>Seus eventos</Text>
           </View>
         </View>
+
         <FlatList
           style={{ width: "100%" }}
           data={events}
           keyExtractor={(item) => item.id}
           refreshing={loadingEvents}
           onRefresh={loadEvents}
-          contentContainerStyle={{ gap: 8, paddingBottom: BottomTabInset }}
-          renderItem={({ item }) => (
-            <Link
-              href={{ pathname: "/event/[id]", params: { id: item.id } }}
-              asChild
-            >
-              <Pressable style={styles.eventCard}>
-                <Text style={styles.eventName}>{item.name}</Text>
-                <Text style={styles.eventInfo}>{item.event_date}</Text>
-                {item.location ? (
-                  <Text style={styles.eventInfo}>{item.location}</Text>
-                ) : null}
-              </Pressable>
-            </Link>
-          )}
+          contentContainerStyle={{
+            gap: spacing.md,
+            paddingBottom: BottomTabInset + spacing.xl,
+          }}
+          renderItem={({ item }) => {
+            const status = getEventStatus(item.event_date);
+            return (
+              <EventCard
+                name={item.name}
+                date={formatEventDate(item.event_date)}
+                location={item.location ?? undefined}
+                statusLabel={status.label}
+                statusVariant={status.variant}
+                backdropColor={colors.black}
+                onPress={() =>
+                  router.push({
+                    pathname: "/event/[id]",
+                    params: { id: item.id },
+                  })
+                }
+              />
+            );
+          }}
           ListEmptyComponent={
             !loadingEvents ? (
-              <ThemedText style={{ textAlign: "center", marginTop: 40 }}>
-                Você ainda não criou nenhum evento.
-              </ThemedText>
+              <View style={styles.emptyState}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={28}
+                  color={colors.grayMuted}
+                />
+                <Text style={styles.emptyTitle}>Nenhum evento ainda</Text>
+                <Text style={styles.emptySubtitle}>
+                  Toque em + para criar o primeiro.
+                </Text>
+              </View>
             ) : null
           }
         />
-
-        {Platform.OS === "web" && <WebBadge />}
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: colors.black },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.three,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
     maxWidth: MaxContentWidth,
     width: "100%",
     alignSelf: "center",
   },
+  centered: { alignItems: "center", justifyContent: "center" },
   heroSection: {
     alignItems: "center",
     justifyContent: "center",
     flex: 1,
-    gap: Spacing.four,
+    gap: spacing.md,
   },
+  heroTitle: { ...typography.h1, fontSize: 32 },
+  heroSubtitle: { ...typography.body, color: colors.gray, textAlign: "center" },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingTop: spacing.md,
+  },
+  eyebrow: { ...typography.label, marginBottom: 2 },
+  title: { ...typography.h1 },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
     alignItems: "center",
-    paddingVertical: Spacing.three,
-    flexWrap: "wrap",
-    gap: 8,
+    justifyContent: "center",
   },
   primaryButton: {
-    backgroundColor: "#000",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    flexShrink: 0,
+    backgroundColor: colors.neon,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 4,
+    borderRadius: radius.pill,
   },
-  primaryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
+  primaryButtonText: { ...typography.bodyMedium, color: colors.black },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingTop: spacing.xl * 2,
   },
-  eventCard: {
-    backgroundColor: "#f2f2f2",
-    padding: 14,
-    borderRadius: 10,
-    gap: 2,
-  },
-  eventName: { fontWeight: "700", fontSize: 16, color: "#000" },
-  eventInfo: { color: "#555" },
-  secondaryButton: {
-    backgroundColor: "#eee",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  secondaryButtonText: {
-    color: "#000",
-    fontWeight: "600",
-    fontSize: 14,
-  },
+  emptyTitle: { ...typography.h3 },
+  emptySubtitle: { ...typography.caption, textAlign: "center" },
+  devLink: { paddingVertical: spacing.sm, alignItems: "center" },
+  devLinkText: { ...typography.caption, color: colors.grayMuted },
 });
