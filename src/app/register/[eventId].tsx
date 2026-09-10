@@ -1,5 +1,5 @@
 import { colors, radius, spacing, typography } from "@/constants/theme";
-import { supabase } from "@/lib/supabase";
+import { supabasePublic as supabase } from "@/lib/supabase-public";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
