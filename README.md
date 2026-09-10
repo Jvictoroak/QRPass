@@ -1,56 +1,117 @@
-# Welcome to your Expo app 👋
+# QRPass
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicativo de gerenciamento de eventos e controle de entrada por QR Code.
+Organizadores criam eventos e compartilham um link público de inscrição;
+participantes se inscrevem, confirmam o e-mail por código OTP e recebem um
+QR Code individual, validado na entrada pelo app do organizador.
 
-## Get started
+## Stack
 
-1. Install dependencies
+- Expo SDK 57 · React Native 0.86 · React 19 · TypeScript 6
+- Expo Router (roteamento baseado em arquivos)
+- Supabase — autenticação (e-mail/senha + OTP), Postgres, Realtime
+- `expo-camera` (leitura de QR) · `react-native-qrcode-svg` (geração de QR)
+- `@react-native-community/datetimepicker` (nativo) + implementação própria
+  em `.web.tsx` para a versão web
+- Fonte: Rubik (`@expo-google-fonts/rubik`)
+- Android, iOS e Web
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Rodando o projeto
 
 ```bash
-npm run reset-project
+npm install
+npm start
+npm run android
+npm run ios
+npm run web
+npm run lint
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Variáveis de ambiente
 
-### Other setup steps
+Crie um arquivo `.env` na raiz com:
+EXPO_PUBLIC_SUPABASE_URL=...
+EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+Pegue os dois valores em Project Settings → API no dashboard do Supabase.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Estrutura de pastas
 
-## Learn more
+│ global.css
+│  
+├───app
+│ │ create-event.tsx
+│ │ login.tsx
+│ │ scanner.tsx
+│ │ \_layout.tsx
+│ │  
+│ ├───(tabs)
+│ │ events.tsx
+│ │ index.tsx
+│ │ notifications.tsx
+│ │ profile.tsx
+│ │ \_layout.tsx
+│ │  
+│ ├───event
+│ │ [id].tsx
+│ │  
+│ ├───profile
+│ │ edit.tsx
+│ │ notifications-settings.tsx
+│ │  
+│ └───register
+│ [eventId].tsx
+│  
+├───components
+│ │ animated-icon.module.css
+│ │ animated-icon.tsx
+│ │ animated-icon.web.tsx
+│ │ app-tabs.web.tsx
+│ │ avatar.tsx
+│ │ badge.tsx
+│ │ custom-tab-bar.tsx
+│ │ date-field.tsx
+│ │ date-field.web.tsx
+│ │ event-card.tsx
+│ │ external-link.tsx
+│ │ hint-row.tsx
+│ │ themed-text.tsx
+│ │ themed-view.tsx
+│ │ web-badge.tsx
+│ │  
+│ └───ui
+│ collapsible.tsx
+│  
+├───constants
+│ theme.ts
+│  
+├───hooks
+│ use-color-scheme.ts
+│ use-color-scheme.web.ts
+│ use-theme.ts
+│  
+└───lib
+auth-context.tsx
+supabase-public.js
+supabase.js
 
-To learn more about developing your project with Expo, look at the following resources:
+## Banco de dados
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+O schema completo (tabelas, RLS, functions) vive em `supabase/schema.sql`.
+Sempre que alterar algo direto no SQL Editor do Supabase, gere um novo dump
+e commite a diferença:
 
-## Join the community
+```bash
+npx supabase db dump --schema public -f supabase/schema.sql
+```
 
-Join our community of developers creating universal apps.
+Tabelas principais: `profiles`, `events`, `registrations`. Toda leitura/escrita
+é protegida por Row Level Security — organizadores só editam/apagam os
+próprios eventos, participantes só se inscrevem em nome de si mesmos, e o
+check-in acontece via a função `check_in(registration_code)`.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Duas sessões no mesmo app
+
+Organizador e participante usam clientes Supabase separados
+(`lib/supabase.js` e `lib/supabase-public.js`, com `storageKey` diferentes),
+para que abrir um link de inscrição não derrube a sessão do organizador
+logado no mesmo dispositivo.
