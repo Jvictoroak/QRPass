@@ -4,10 +4,11 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   Share,
@@ -65,6 +66,31 @@ export default function EventDetail() {
     }
   }
 
+  function handleDelete() {
+    Alert.alert(
+      "Apagar evento",
+      `Tem certeza que quer apagar "${event?.name}"? Essa ação não pode ser desfeita e vai remover também todas as inscrições.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Apagar",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase
+              .from("events")
+              .delete()
+              .eq("id", id);
+            if (error) {
+              Alert.alert("Erro ao apagar", error.message);
+              return;
+            }
+            router.replace("/");
+          },
+        },
+      ],
+    );
+  }
+
   const loadData = useCallback(async () => {
     const { data: eventData } = await supabase
       .from("events")
@@ -82,9 +108,11 @@ export default function EventDetail() {
     setLoading(false);
   }, [id]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -186,13 +214,22 @@ export default function EventDetail() {
           >
             <Ionicons name="chevron-back" size={20} color={colors.white} />
           </Pressable>
-          <Pressable
-            onPress={handleShareLink}
-            style={styles.iconButton}
-            hitSlop={8}
-          >
-            <Ionicons name="share-outline" size={18} color={colors.white} />
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <Pressable
+              onPress={() => router.push(`/event/edit/${event.id}`)}
+              style={styles.iconButton}
+              hitSlop={8}
+            >
+              <Ionicons name="pencil-outline" size={18} color={colors.white} />
+            </Pressable>
+            <Pressable
+              onPress={handleShareLink}
+              style={styles.iconButton}
+              hitSlop={8}
+            >
+              <Ionicons name="share-outline" size={18} color={colors.white} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.header}>
@@ -232,6 +269,11 @@ export default function EventDetail() {
           >
             <Ionicons name="qr-code-outline" size={18} color={colors.black} />
             <Text style={styles.scannerButtonText}>Abrir scanner</Text>
+          </Pressable>
+
+          <Pressable onPress={handleDelete} style={styles.deleteButton}>
+            <Ionicons name="trash-outline" size={16} color={colors.danger} />
+            <Text style={styles.deleteButtonText}>Apagar evento</Text>
           </Pressable>
         </View>
 
@@ -370,4 +412,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { ...typography.h3 },
   emptySubtitle: { ...typography.caption, textAlign: "center" },
+  deleteButton: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.sm + 2,
+  },
+  deleteButtonText: { ...typography.caption, color: colors.danger },
 });
