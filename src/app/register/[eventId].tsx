@@ -124,6 +124,7 @@ export default function Register() {
     if (existing) {
       setLoading(false);
       setRegistrationCode(existing.code);
+      sendTicketEmail(existing.code);
       setStep("success");
       return;
     }
@@ -147,7 +148,24 @@ export default function Register() {
     }
 
     setRegistrationCode(registration.code);
+    sendTicketEmail(registration.code);
     setStep("success");
+  }
+
+  async function sendTicketEmail(code: string) {
+    try {
+      await supabase.functions.invoke("send-ticket-email", {
+        body: {
+          email,
+          attendeeName: name,
+          eventName: event?.name,
+          eventDate: event ? formatEventDate(event.event_date) : undefined,
+          registrationCode: code,
+        },
+      });
+    } catch (error) {
+      console.log("Erro ao enviar e-mail do ingresso:", error);
+    }
   }
 
   if (step === "loading-event") {
